@@ -1,12 +1,14 @@
 // vite.config.js
 import { defineConfig } from 'vite';
 import { analyzer  } from 'vite-bundle-analyzer';
+import glsl from 'vite-plugin-glsl';
 
 export default defineConfig(({ command }) => {
   return {
     // Включаем анализатор только при сборке
     plugins: [
-      analyzer()
+      analyzer(),
+      glsl(),
     ],
 
     // Остальные настройки (опционально)

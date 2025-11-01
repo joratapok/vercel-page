@@ -10,9 +10,11 @@
   },
   "devDependencies": {
     "vite": "^7.1.2",
-    "vite-bundle-analyzer": "^1.2.3"
+    "vite-bundle-analyzer": "^1.2.3",
+    "vite-plugin-glsl": "^1.5.4"
   },
   "dependencies": {
+    "cannon": "^0.6.2",
     "gsap": "^3.13.0",
     "lil-gui": "^0.20.0",
     "three": "^0.180.0"
