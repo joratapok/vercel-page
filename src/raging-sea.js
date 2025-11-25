@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import GUI from 'lil-gui'
 import vertexShader from './shaders/rage/vertex.glsl'
 import fragmentShader from './shaders/rage/fragment.glsl'
+import {GLTFLoader} from "three/addons/loaders/GLTFLoader.js";
 
 /**
  * Base
@@ -11,11 +12,19 @@ import fragmentShader from './shaders/rage/fragment.glsl'
 const gui = new GUI({ width: 340 });
 const global = {};
 
+// Loaders
+const gltfLoader = new GLTFLoader();
+
 // Canvas
 const canvas = document.querySelector('#root');
 
 // Scene
 const scene = new THREE.Scene();
+
+// Axes helper
+// const axesHelper = new THREE.AxesHelper();
+// axesHelper.position.set(0, 0.5, 0);
+// scene.add(axesHelper);
 
 /**
  * Sizes
@@ -34,7 +43,7 @@ camera.position.set(1, 1, 1);
 scene.add(camera);
 
 // Fog
-const fog = new THREE.Fog('#262837', 1, 5);
+const fog = new THREE.Fog('#262837', 1, 10);
 scene.fog = fog;
 
 /**
@@ -42,10 +51,12 @@ scene.fog = fog;
  */
 // Geometry
 const waterGeometry = new THREE.PlaneGeometry(2, 2, 512, 512);
+waterGeometry.deleteAttribute('normal');
+waterGeometry.deleteAttribute('uv');
 
 // Color
-global.depthColor = '#186691';
-global.surfaceColor = '#9bd8ff';
+global.depthColor = '#ff4000';
+global.surfaceColor = '#151c37';
 
 // Material
 const waterMaterial = new THREE.ShaderMaterial({
@@ -57,16 +68,17 @@ const waterMaterial = new THREE.ShaderMaterial({
     uFrequency: {value: new THREE.Vector2(4, 1.5)},
     uElevation: {value: 0.2},
     uWaveSpeed: {value: 1.0},
+    uColor: {value: new THREE.Color('#ffffff')},
 
     uSmallWavesElevation: {value: 0.15},
     uSmallWavesFrequency: {value: 3.0},
     uSmallWavesSpeed: {value: 0.2},
-    uSmallIterations: {value: 3.0},
+    uSmallIterations: {value: 4},
 
     uDepthColor: {value: new THREE.Color(global.depthColor)},
     uSurfaceColor: {value: new THREE.Color(global.surfaceColor)},
-    uColorOffset: {value: 0.17},
-    uColorMultiplier: {value: 5},
+    uColorOffset: {value: 0.925},
+    uColorMultiplier: {value: 1},
 
     cameraPosition: {value: camera.position},
     fogColor: {value: scene.fog.color},
@@ -100,6 +112,33 @@ const water = new THREE.Mesh(waterGeometry, waterMaterial);
 water.rotation.x = - Math.PI * 0.5;
 scene.add(water);
 
+
+/**
+ * Lights
+ */
+const pointLight = new THREE.PointLight('#fff', 5);
+pointLight.position.set(1, 3, 0);
+scene.add(pointLight)
+
+// Model
+let duck = null;
+gltfLoader.load('/models/Duck/glTF/Duck.gltf', (gltf) => {
+  gltf.scene.traverse((child) => {
+    if (child instanceof THREE.Mesh) {
+      child.material.roughness = 0.4;
+      child.material.metalness = 0.3;
+      child.material.needsUpdate = true;
+    }
+  });
+
+  duck = gltf.scene;
+  scene.add(duck);
+  // duck.position.set(0.5, 0, 0);
+  // duck.rotateY(Math.PI/2);
+  duck.rotation.z = 0.5;
+  duck.scale.set(0.1, 0.1, 0.1);
+})
+
 window.addEventListener('resize', () =>
 {
   // Update sizes
@@ -127,17 +166,43 @@ const renderer = new THREE.WebGLRenderer({
 });
 renderer.setSize(sizes.width, sizes.height);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
 
 /**
  * Animate
  */
 const clock = new THREE.Clock()
+let lastTime = 0;
 
 const tick = () =>
 {
   const elapsedTime = clock.getElapsedTime();
+  const deltaTime = elapsedTime - lastTime;
+  lastTime = elapsedTime;
 
   waterMaterial.uniforms.uTime.value = elapsedTime;
+
+  if (duck) {
+    const uFrequency = waterMaterial.uniforms.uFrequency.value;
+    const uWaveSpeed = waterMaterial.uniforms.uWaveSpeed.value;
+    const uElevation = waterMaterial.uniforms.uElevation.value;
+
+    const elevation = Math.sin(
+      duck.position.x * uFrequency.x - (elapsedTime * uWaveSpeed)
+    ) * Math.sin(
+      duck.position.z * uFrequency.y - (elapsedTime * uWaveSpeed)
+    ) * uElevation;
+
+    const rotationAngle = deltaTime * 0.8;
+    if (elevation - 0.15 > duck.position.y) {
+      duck.rotation.z -= rotationAngle;
+    } else {
+      duck.rotation.z += rotationAngle;
+    }
+
+    duck.position.y = elevation - 0.15;
+  }
 
   // Update controls
   controls.update()
